@@ -115,12 +115,14 @@ class _WindowBodyState extends State<WindowBody> {
 
   Timer? _timer;
   void _startTimer() async {
+    final logger = Logger();
     _flag = !_flag;
     if (_flag) {
-      Timer.periodic(const Duration(seconds: 3), (timer) {
+      _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
         _recordSwitch();
       });
     } else {
+      logger.w("Canceled Timer!! $_flag");
       _stopTimer();
       _stopRecording();
     }
