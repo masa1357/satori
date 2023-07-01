@@ -58,6 +58,15 @@ class _WindowBodyState extends State<WindowBody> {
   String? pathToWrite;
   final logger = Logger();
 
+  // API response holder
+  Map<String, dynamic> apiResponse = {
+    "calm": 0,
+    "anger": 0,
+    "joy": 0,
+    "sorrow": 0,
+    "energy": 0,
+  };
+
   Future<Map<String, dynamic>> _getAPI(String filePath) async {
     const url = 'https://api.webempath.net/v2/analyzeWav';
     const apikey = "-Z7Pukop4oayllGf5lovrOsVg7fUTwLdJuaWaWFTkNM";
@@ -121,6 +130,9 @@ class _WindowBodyState extends State<WindowBody> {
     await _convertToWav();
     var response = await _getAPI(newPath);
     logger.i(response); // or do whatever you want with the response
+    setState(() {
+      apiResponse = response;
+    });
   }
 
   // void _startPlaying() async {
