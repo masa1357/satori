@@ -44,17 +44,20 @@ class WindowBody extends StatefulWidget {
 
 class _WindowBodyState extends State<WindowBody> {
   bool _status = false;
+  bool _flag = false;
   final record = Record();
   String? pathToWrite;
+  final logger = Logger();
 
   void _startRecording() async {
     // 録音を開始する
+    logger.i("Start recording $_flag");
     await record.hasPermission();
     final directory = await getApplicationDocumentsDirectory();
     pathToWrite = directory.path + '/kari.wav';
     await record.start(
       path: pathToWrite,
-      encoder: AudioEncoder.pcm16bit,
+      //encoder: AudioEncoder.pcm16bit,
       bitRate: 128000,
       samplingRate: 11025,
     );
@@ -62,6 +65,7 @@ class _WindowBodyState extends State<WindowBody> {
 
   void _stopRecording() async {
     // 録音を停止する
+    logger.w("Stop recording");
     await record.stop();
     // var logger = Logger();
     // logger.i("Logger is working!");
@@ -104,15 +108,26 @@ class _WindowBodyState extends State<WindowBody> {
         _startRecording();
       } else {
         _stopRecording();
-        _startPlaying();
+        //_startPlaying();
       }
     });
   }
 
-  void _startTimer() {
-    Timer.periodic(const Duration(seconds: 3), (timer) {
-      _recordSwitch();
-    });
+  Timer? _timer;
+  void _startTimer() async {
+    _flag = !_flag;
+    if (_flag) {
+      Timer.periodic(const Duration(seconds: 3), (timer) {
+        _recordSwitch();
+      });
+    } else {
+      _stopTimer();
+      _stopRecording();
+    }
+  }
+
+  void _stopTimer() {
+    _timer?.cancel();
   }
 
   @override
@@ -121,7 +136,7 @@ class _WindowBodyState extends State<WindowBody> {
         padding: const EdgeInsets.all(50.0),
         child: Column(
           children: <Widget>[
-            Text((_status ? "録音中..." : "録音ボタンを押してね！"),
+            Text((_flag ? "録音中..." : "録音ボタンを押してね！"),
                 style: const TextStyle(
                   color: Colors.greenAccent,
                   fontSize: 40.0,
@@ -136,8 +151,8 @@ class _WindowBodyState extends State<WindowBody> {
                   shadowColor: Colors.teal,
                   elevation: 5,
                 ),
-                child: const Text("録音",
-                    style: TextStyle(
+                child: Text((_flag ? "停止" : "開始"),
+                    style: const TextStyle(
                         color: Color.fromARGB(255, 187, 52, 52),
                         fontSize: 40.0)))
           ],
