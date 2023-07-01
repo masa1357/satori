@@ -109,6 +109,7 @@ class _WindowBodyState extends State<WindowBody> {
       } else {
         _stopRecording();
         //_startPlaying();
+        //_sendAPI();
       }
     });
   }
@@ -116,16 +117,18 @@ class _WindowBodyState extends State<WindowBody> {
   Timer? _timer;
   void _startTimer() async {
     final logger = Logger();
-    _flag = !_flag;
-    if (_flag) {
-      _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
-        _recordSwitch();
-      });
-    } else {
-      logger.w("Canceled Timer!! $_flag");
-      _stopTimer();
-      _stopRecording();
-    }
+    setState(() {
+      _flag = !_flag;
+      if (_flag) {
+        _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
+          _recordSwitch();
+        });
+      } else {
+        logger.e("Canceled Timer!! flag:$_flag");
+        _stopTimer();
+        _stopRecording();
+      }
+    });
   }
 
   void _stopTimer() {
