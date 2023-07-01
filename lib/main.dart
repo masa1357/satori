@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:external_path/external_path.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_sound/flutter_sound.dart';
 import 'package:http/http.dart' as http;
 // import 'package:audioplayers/audioplayers.dart';
 // import 'package:ffmpeg_kit_flutter/ffmpeg_kit.dart';
@@ -9,7 +11,6 @@ import 'package:http/http.dart' as http;
 // import 'package:ffmpeg_kit_flutter/return_code.dart';
 
 import 'package:logger/logger.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
 void main() {
@@ -67,32 +68,58 @@ class _WindowBodyState extends State<WindowBody> {
     request.files.add(await http.MultipartFile.fromPath('wav', filePath));
     var response = await request.send();
     if (response.statusCode == 200) {
+      logger.i("Get Responce...");
       var result = await http.Response.fromStream(response);
       return jsonDecode(result.body);
     } else {
+      logger.w("Failed");
       throw Exception('Failed to load data');
     }
+  }
+
+  Future<void> _convertToWav() async {
+    var tempDir = await ExternalPath.getExternalStoragePublicDirectory(
+        ExternalPath.DIRECTORY_DOWNLOADS);
+    String newPath = '$tempDir/converted.wav';
+
+    var flutterSoundHelper = FlutterSoundHelper();
+
+    await flutterSoundHelper.convertFile(
+      pathToWrite,
+      Codec.aacADTS,
+      newPath,
+      Codec.pcm16WAV,
+    );
+
+    // Do what you want with the newPath here
+    //logger.i("Converted file path: $newPath");
   }
 
   void _startRecording() async {
     // 録音を開始する
     logger.i("Start recording $_flag");
     await record.hasPermission();
-    final directory = await getApplicationDocumentsDirectory();
-    pathToWrite = '${directory.path}/kari.wav';
+    //final directory = await getApplicationDocumentsDirectory();
+    final directory = await ExternalPath.getExternalStoragePublicDirectory(
+        ExternalPath.DIRECTORY_DOWNLOADS);
+    pathToWrite = '$directory/kari.m4a';
     await record.start(
       path: pathToWrite,
-      encoder: AudioEncoder.pcm16bit,
-      bitRate: 128000,
+      encoder: AudioEncoder.aacLc,
+      bitRate: 256000,
       samplingRate: 11025,
     );
   }
 
   void _stopRecording() async {
     // 録音を停止する
+    var tempDir = await ExternalPath.getExternalStoragePublicDirectory(
+        ExternalPath.DIRECTORY_DOWNLOADS);
+    String newPath = '$tempDir/converted.wav';
     logger.w("Stop recording PATH:$pathToWrite");
     await record.stop();
-    var response = await _getAPI(pathToWrite!);
+    await _convertToWav();
+    var response = await _getAPI(newPath);
     logger.i(response); // or do whatever you want with the response
   }
 
