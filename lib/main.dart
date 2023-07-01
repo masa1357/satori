@@ -6,6 +6,7 @@ import 'package:audioplayers/audioplayers.dart';
 // import 'package:ffmpeg_kit_flutter/ffmpeg_kit_config.dart';
 // import 'package:ffmpeg_kit_flutter/return_code.dart';
 import 'package:logger/logger.dart';
+import 'dart:async';
 
 void main() {
   runApp(Recorder());
@@ -96,15 +97,21 @@ class _WindowBodyState extends State<WindowBody> {
     logger.i('Finish Play!!');
   }
 
-  void _handlePressed() {
+  void _recordSwitch() {
     setState(() {
       _status = !_status;
       if (_status) {
         _startRecording();
       } else {
         _stopRecording();
- //       _startPlaying();
+        _startPlaying();
       }
+    });
+  }
+
+  void _startTimer() {
+    Timer.periodic(const Duration(seconds: 3), (timer) {
+      _recordSwitch();
     });
   }
 
@@ -122,7 +129,7 @@ class _WindowBodyState extends State<WindowBody> {
                   fontFamily: "RondeB",
                 )),
             TextButton(
-                onPressed: _handlePressed,
+                onPressed: _startTimer,
                 style: TextButton.styleFrom(
                   foregroundColor: Colors.blue,
                   backgroundColor: Colors.tealAccent,
