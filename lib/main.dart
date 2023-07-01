@@ -203,6 +203,7 @@ class _WindowBodyState extends State<WindowBody> {
                     style: const TextStyle(
                         color: Color.fromARGB(255, 187, 52, 52),
                         fontSize: 40.0)))
+                        //ここに追加するんかな？しらんけど
           ],
         ));
   }
