@@ -1,15 +1,20 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:external_path/external_path.dart';
 import 'package:flutter/material.dart';
-import 'package:record/record.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter_sound/flutter_sound.dart';
+import 'package:http/http.dart' as http;
+// import 'package:audioplayers/audioplayers.dart';
 // import 'package:ffmpeg_kit_flutter/ffmpeg_kit.dart';
 // import 'package:ffmpeg_kit_flutter/ffmpeg_kit_config.dart';
 // import 'package:ffmpeg_kit_flutter/return_code.dart';
+
 import 'package:logger/logger.dart';
-import 'dart:async';
+import 'package:record/record.dart';
 
 void main() {
-  runApp(Recorder());
+  runApp(const Recorder());
 }
 
 // var logger = Logger(
@@ -21,6 +26,8 @@ void main() {
 // );
 
 class Recorder extends StatelessWidget {
+  const Recorder({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -29,7 +36,7 @@ class Recorder extends StatelessWidget {
         appBar: AppBar(
           title: const Text('Record'),
         ),
-        body: Center(
+        body: const Center(
           child: WindowBody(),
         ),
       ),
@@ -38,6 +45,8 @@ class Recorder extends StatelessWidget {
 }
 
 class WindowBody extends StatefulWidget {
+  const WindowBody({super.key});
+
   @override
   _WindowBodyState createState() => _WindowBodyState();
 }
@@ -49,69 +58,91 @@ class _WindowBodyState extends State<WindowBody> {
   String? pathToWrite;
   final logger = Logger();
 
+  Future<Map<String, dynamic>> _getAPI(String filePath) async {
+    const url = 'https://api.webempath.net/v2/analyzeWav';
+    const apikey = "-Z7Pukop4oayllGf5lovrOsVg7fUTwLdJuaWaWFTkNM";
+    var request = http.MultipartRequest('POST', Uri.parse(url));
+    request.fields.addAll({
+      'apikey': apikey,
+    });
+    request.files.add(await http.MultipartFile.fromPath('wav', filePath));
+    var response = await request.send();
+    if (response.statusCode == 200) {
+      logger.i("Get Responce...");
+      var result = await http.Response.fromStream(response);
+      return jsonDecode(result.body);
+    } else {
+      logger.w("Failed");
+      throw Exception('Failed to load data');
+    }
+  }
+
+  Future<void> _convertToWav() async {
+    var tempDir = await ExternalPath.getExternalStoragePublicDirectory(
+        ExternalPath.DIRECTORY_DOWNLOADS);
+    String newPath = '$tempDir/converted.wav';
+
+    var flutterSoundHelper = FlutterSoundHelper();
+
+    await flutterSoundHelper.convertFile(
+      pathToWrite,
+      Codec.aacADTS,
+      newPath,
+      Codec.pcm16WAV,
+    );
+
+    // Do what you want with the newPath here
+    //logger.i("Converted file path: $newPath");
+  }
+
   void _startRecording() async {
     // 録音を開始する
     logger.i("Start recording $_flag");
     await record.hasPermission();
-    final directory = await getApplicationDocumentsDirectory();
-    pathToWrite = directory.path + '/kari.wav';
+    //final directory = await getApplicationDocumentsDirectory();
+    final directory = await ExternalPath.getExternalStoragePublicDirectory(
+        ExternalPath.DIRECTORY_DOWNLOADS);
+    pathToWrite = '$directory/kari.m4a';
     await record.start(
       path: pathToWrite,
-      //encoder: AudioEncoder.pcm16bit,
-      bitRate: 128000,
+      encoder: AudioEncoder.aacLc,
+      bitRate: 256000,
       samplingRate: 11025,
     );
   }
 
   void _stopRecording() async {
     // 録音を停止する
-    logger.w("Stop recording");
+    var tempDir = await ExternalPath.getExternalStoragePublicDirectory(
+        ExternalPath.DIRECTORY_DOWNLOADS);
+    String newPath = '$tempDir/converted.wav';
+    logger.w("Stop recording PATH:$pathToWrite");
     await record.stop();
-    // var logger = Logger();
-    // logger.i("Logger is working!");
-    // FFmpegKitConfig.selectDocumentForWrite('$pathToWrite/kari.wav', 'audio/*')
-    //     .then((uri) {
-    //   FFmpegKitConfig.getSafParameterForWrite(uri!).then((safUrl) {
-    //     // FFmpegKit.executeAsync(
-    //     //     "-i '$pathToWrite/kari.m4a' -c:a pcm_s16le ${safUrl}");
-    //     FFmpegKit.executeAsync(
-    //             "-i '$pathToWrite/kari.m4a' -c:a pcm_s16le ${safUrl}")
-    //         .then((session) async {
-    //       final returnCode = await session.getReturnCode();
-    //       if (ReturnCode.isSuccess(returnCode)) {
-    //         logger.i("Conversion completed successfully.");
-    //       } else if (ReturnCode.isCancel(returnCode)) {
-    //         logger.e("Conversion cancelled by user.");
-    //       } else {
-    //         logger.e("Conversion failed with return code: $returnCode");
-    //       }
-    //     });
-    //   });
-    // });
+    await _convertToWav();
+    var response = await _getAPI(newPath);
+    logger.i(response); // or do whatever you want with the response
   }
 
-  void _startPlaying() async {
-    // 再生する
-    final logger = Logger();
-    AudioPlayer audioPlayer = AudioPlayer();
-    final directory = await getApplicationDocumentsDirectory();
-    String pathToWrite = directory.path + '/kari.wav';
-    logger.i('Start Play!!');
-    await audioPlayer.play(DeviceFileSource(pathToWrite));
-    logger.i('Finish Play!!');
-  }
+  // void _startPlaying() async {
+  //   // 再生する
+  //   final logger = Logger();
+  //   AudioPlayer audioPlayer = AudioPlayer();
+  //   final directory = await getApplicationDocumentsDirectory();
+  //   String pathToWrite = '${directory.path}/kari.wav';
+  //   logger.i('Start Play!!');
+  //   await audioPlayer.play(DeviceFileSource(pathToWrite));
+  //   logger.i('Finish Play!!');
+  // }
 
-  void _recordSwitch() {
-    setState(() {
-      _status = !_status;
-      if (_status) {
-        _startRecording();
-      } else {
-        _stopRecording();
-        //_startPlaying();
-        //_sendAPI();
-      }
-    });
+  void _recordSwitch() async {
+    _status = !_status;
+    if (_status) {
+      _startRecording();
+    } else {
+      _stopRecording();
+      //_startPlaying();
+    }
+    setState(() {});
   }
 
   Timer? _timer;
@@ -141,7 +172,7 @@ class _WindowBodyState extends State<WindowBody> {
         padding: const EdgeInsets.all(50.0),
         child: Column(
           children: <Widget>[
-            Text((_flag ? "録音中..." : "録音ボタンを押してね！"),
+            Text((_flag ? "録音中...\n" : "録音ボタンを押してね！"),
                 style: const TextStyle(
                   color: Colors.greenAccent,
                   fontSize: 40.0,
